@@ -29,6 +29,7 @@ import javax.swing.JPasswordField;
 import java.sql.SQLException;
 import java.util.List;
 import com.ibatis.sqlmap.client.SqlMapClient;
+import java.sql.Connection; //+Val
 
 /**
  * Wrapper for com.ibatis.sqlmap.client.SqlMapClient, so that
@@ -151,4 +152,11 @@ public class SqlMapClientWrapper
   {
     return sqlMap;
   }
+  
+  //+Val...
+  public Connection getCurrentConnection() throws SQLException
+  {
+    return sqlMap.getCurrentConnection();
+  }
+  //...+Val
 }

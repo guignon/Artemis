@@ -1369,6 +1369,14 @@ public class IBatisDAO extends GmodDAO
   }
 
 
+  //+Val...
+  public Connection getCurrentConnection() throws SQLException
+  {
+    return sqlMap.getCurrentConnection();
+  }
+  //...+Val
+
+
   /**
    * Takes a list and creates a <code>Hashtable</code> with the keys
    * being the feature_id and the value a <code>Vector</code> of the dbxrefs.

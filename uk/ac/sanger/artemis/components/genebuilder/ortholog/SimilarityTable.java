@@ -67,11 +67,11 @@ public class SimilarityTable extends AbstractMatchTable
   final static String DESCRIPTION_COL = "Description";
   final static String EVALUE_COL = "E-value";
   final static String LENGTH_COL = "Length";
-  final static String ID_COL = "ID";
+  final static String ID_COL = "Identity"; //+Gaetan
   final static String QUERY_COL = "Query";
   final static String SUBJECT_COL = "Subject";
-  final static String SCORE_COL = "Score";
-  final static String OVERLAP_COL = "Overlap";
+  final static String QCOV_COL = "QCov"; //+Gaetan
+  final static String SCOV_COL = "Scov"; //+Gaetan
   final static String METHOD_COL = "Method";
   final static String REMOVE_BUTTON_COL = "";
   
@@ -100,8 +100,8 @@ public class SimilarityTable extends AbstractMatchTable
     tableData.setElementAt(ID_COL,6);
     tableData.setElementAt(QUERY_COL,7);
     tableData.setElementAt(SUBJECT_COL,8);
-    tableData.setElementAt(SCORE_COL,9);
-    tableData.setElementAt(OVERLAP_COL,10);
+    tableData.setElementAt(QCOV_COL,9); //+Gaetan
+    tableData.setElementAt(SCOV_COL,10); //+Gaetan
     tableData.setElementAt(METHOD_COL,11);
     tableData.setElementAt(REMOVE_BUTTON_COL,12);
     
@@ -144,8 +144,8 @@ public class SimilarityTable extends AbstractMatchTable
     final TableColumn[] hideColumns = new TableColumn[5];
     hideColumns[0] = similarityTable.getColumn(QUERY_COL);
     hideColumns[1] = similarityTable.getColumn(SUBJECT_COL);
-    hideColumns[2] = similarityTable.getColumn(SCORE_COL);
-    hideColumns[3] = similarityTable.getColumn(OVERLAP_COL);
+    hideColumns[2] = similarityTable.getColumn(QCOV_COL); //+Gaetan
+    hideColumns[3] = similarityTable.getColumn(SCOV_COL); //+Gaetan
     hideColumns[4] = similarityTable.getColumn(METHOD_COL);
     
     for(int i=0; i<hideColumns.length; i++)
@@ -234,8 +234,24 @@ public class SimilarityTable extends AbstractMatchTable
     if(sim.size() >=3)
     {
       int columnIndex = tableData.indexOf(ORGANISM_COL);
+      //+?Gaetan...
+      if (sim.size() == 12) 
+      {
+      row.setElementAt(((String)sim.get(3)).trim(), columnIndex);
+      }
+      else {
+      //...+?Gaetan
       row.setElementAt(((String)sim.get(2)).trim(), columnIndex);
+      } //+?Gaetan
     }
+     //+?Gaetan
+    String organism;
+    if( !(organism=getField("organism=", similarityString)).equals("") )
+    {
+      int columnIndex = tableData.indexOf(ORGANISM_COL);
+      row.setElementAt(organism, columnIndex);
+    }
+    //+?Gaetan
     
     // hit
     if(sim.size() >=2)
@@ -262,17 +278,25 @@ public class SimilarityTable extends AbstractMatchTable
         row.setElementAt(hits[1], columnIndex);
       }
     }
-    
+    /*+?Gaetan...
     // description
     if(sim.size() >=4)
     {
       int columnIndex = tableData.indexOf(DESCRIPTION_COL);
-      row.setElementAt(((String)sim.get(3)).trim(), columnIndex);
+      row.setElementAt(((String)sim.get(2)).trim(), columnIndex);
+    } */
+    String description;
+    if( !(description=getField("description=", similarityString)).equals("") )
+    {
+      int columnIndex = tableData.indexOf(DESCRIPTION_COL);
+      row.setElementAt(description, columnIndex);
     }
+    //...+?Gaetan
     
     // e-value
     String evalueString;
-    if( !(evalueString=getField("E()=", similarityString)).equals("") )
+    //+Gaetan
+    if( !(evalueString=getField("evalue=", similarityString)).equals("") )
     {
       int columnIndex = tableData.indexOf(EVALUE_COL);
       row.setElementAt(evalueString, columnIndex);
@@ -290,12 +314,13 @@ public class SimilarityTable extends AbstractMatchTable
       int columnIndex = tableData.indexOf(LENGTH_COL);
       row.setElementAt(lenString, columnIndex);
     }
-    
-    String ungappedId;
-    if( !(ungappedId=getField("ungapped id", similarityString)).equals("") )
+    //+Gaetan
+    String identity;
+    if( !(identity=getField("identity=", similarityString)).equals("") )
     {
       int columnIndex = tableData.indexOf(ID_COL);
-      row.setElementAt(ungappedId, columnIndex);
+      //+Gaetan
+      row.setElementAt(identity, columnIndex);
     }
     
     String query;
@@ -311,20 +336,21 @@ public class SimilarityTable extends AbstractMatchTable
       int columnIndex = tableData.indexOf(SUBJECT_COL);
       row.setElementAt(subject, columnIndex);
     }
-    
-    String score;
-    if( !(score=getField("score=", similarityString)).equals("") )
+    //+Gaetan...
+    String qcov;
+    if( !(qcov=getField("qcov=", similarityString)).equals("") )
     {
-      int columnIndex = tableData.indexOf(SCORE_COL);
-      row.setElementAt(score, columnIndex);
+      int columnIndex = tableData.indexOf(QCOV_COL);
+      row.setElementAt(qcov, columnIndex);
     }
     
-    String overlap;
-    if( !(overlap=getField("overlap=", similarityString)).equals("") )
+    String scov;
+    if( !(scov=getField("scov=", similarityString)).equals("") )
     {
-      int columnIndex = tableData.indexOf(OVERLAP_COL);
-      row.setElementAt(overlap, columnIndex);
+      int columnIndex = tableData.indexOf(SCOV_COL);
+      row.setElementAt(scov, columnIndex);
     }
+/*
     else if(similarityString.indexOf("overlap;") > -1)
     {
       overlap = null;
@@ -343,6 +369,8 @@ public class SimilarityTable extends AbstractMatchTable
         row.setElementAt(overlap, columnIndex);
       }
     }
+*/
+    //...+Gaetan
     
     int columnIndex = tableData.indexOf(METHOD_COL);
     row.setElementAt(((String)sim.get(0)).trim(), columnIndex);
@@ -377,25 +405,51 @@ public class SimilarityTable extends AbstractMatchTable
       similarityStr.append(" ("+dbxref+")");
     
     similarityStr.append(";");
+    //+?Gaetan...
+    if(getTable().getValueAt(row, getColumnIndex(ORGANISM_COL)) != null)
+    {
+      similarityStr.append("organism="+
+             (String)getTable().getValueAt(row, getColumnIndex(ORGANISM_COL)) );  // organism
+      similarityStr.append(";");
+    }/* 
     similarityStr.append(
              (String)getTable().getValueAt(row, getColumnIndex(ORGANISM_COL)) ); // organism
-    similarityStr.append(";");
+    similarityStr.append(";"); */
+    if(getTable().getValueAt(row, getColumnIndex(DESCRIPTION_COL)) != null)
+    {
+      similarityStr.append("description="+
+             (String)getTable().getValueAt(row, getColumnIndex(DESCRIPTION_COL)) );  // description
+      similarityStr.append(";");
+    }
+    /* 
     similarityStr.append(
              (String)getTable().getValueAt(row, getColumnIndex(DESCRIPTION_COL)) ); // description
     similarityStr.append(";");
+    */
+    //...+Gaetan
     similarityStr.append("length "+
              (String)getTable().getValueAt(row, getColumnIndex(LENGTH_COL)) ); // length
     similarityStr.append(";");
-    similarityStr.append("E()="+
+     //+Gaetan
+    similarityStr.append("evalue="+
              (String)getTable().getValueAt(row, getColumnIndex(EVALUE_COL)) ); // evalue
     similarityStr.append(";");
-    
-    if(getTable().getValueAt(row, getColumnIndex(SCORE_COL)) != null)
+    //+Gaetan
+    if(getTable().getValueAt(row, getColumnIndex(QCOV_COL)) != null)
     {
-      similarityStr.append("score="+
-             (String)getTable().getValueAt(row, getColumnIndex(SCORE_COL)) );  // score
+      //+Gaetan
+      similarityStr.append("qcov="+
+             (String)getTable().getValueAt(row, getColumnIndex(QCOV_COL)) );  // qcov
       similarityStr.append(";");
     }
+    //+Gaetan...
+    if(getTable().getValueAt(row, getColumnIndex(SCOV_COL)) != null)
+    {
+      similarityStr.append("scov="+
+             (String)getTable().getValueAt(row, getColumnIndex(SCOV_COL)) );  // scov
+      similarityStr.append(";");
+    }
+    //...+Gaetan
     
     similarityStr.append("query "+
              (String)getTable().getValueAt(row, getColumnIndex(QUERY_COL)) );  // query
@@ -406,14 +460,15 @@ public class SimilarityTable extends AbstractMatchTable
     
     if(getTable().getValueAt(row, getColumnIndex(ID_COL)) != null)
     {
-      similarityStr.append("ungapped id="+
+      //+Gaetan
+      similarityStr.append("identity="+
              (String)getTable().getValueAt(row, getColumnIndex(ID_COL)) ); // ungapped id
       similarityStr.append(";");
     }
-    
-    if(getTable().getValueAt(row, getColumnIndex(OVERLAP_COL)) != null)
+    //+Gaetan
+    if(getTable().getValueAt(row, getColumnIndex(SCOV_COL)) != null)
       similarityStr.append("overlap="+
-             (String)getTable().getValueAt(row, getColumnIndex(OVERLAP_COL)) ); // overlap
+             (String)getTable().getValueAt(row, getColumnIndex(SCOV_COL)) ); // overlap
     
     return similarityStr.toString();
   }
@@ -449,8 +504,9 @@ public class SimilarityTable extends AbstractMatchTable
         continue;
       
       // e-value
-      final String evalueString1 = getField("E()=", qualStr);
-      final String evalueString2 = getField("E()=", thisStr);
+      //+Gaetan
+      final String evalueString1 = getField("evalue=", qualStr);
+      final String evalueString2 = getField("evalue=", thisStr);
       if( !(evalueString1.equals(evalueString2)) )
         continue;
       
@@ -474,11 +530,11 @@ public class SimilarityTable extends AbstractMatchTable
     private final JLabel length = new JLabel();
     private final JTextArea organismTextArea = new JTextArea();
     private final JTextArea descriptionTextArea = new JTextArea();
-    private final JLabel ungappedId = new JLabel();
+    private final JLabel identity = new JLabel(); //+Gaetan
     private final JLabel queryCoord = new JLabel();
     private final JLabel subjCoord  = new JLabel();
-    private final JLabel score      = new JLabel();
-    private final JLabel overlap    = new JLabel();
+    private final JLabel qcov      = new JLabel(); //+Gaetan
+    private final JLabel scov    = new JLabel(); //+Gaetan
     private final JLabel method     = new JLabel();
     private final JLabel buttRemove = new JLabel("X");
     private Color fgColor = new Color(139,35,35);
@@ -492,21 +548,21 @@ public class SimilarityTable extends AbstractMatchTable
       length.setHorizontalAlignment(SwingConstants.RIGHT);
       length.setVerticalAlignment(SwingConstants.TOP);
       length.setOpaque(true);
-      ungappedId.setHorizontalAlignment(SwingConstants.RIGHT);
-      ungappedId.setVerticalAlignment(SwingConstants.TOP);
-      ungappedId.setOpaque(true);
+      identity.setHorizontalAlignment(SwingConstants.RIGHT); //+Gaetan
+      identity.setVerticalAlignment(SwingConstants.TOP); //+Gaetan
+      identity.setOpaque(true); //+Gaetan
       queryCoord.setHorizontalAlignment(SwingConstants.RIGHT);
       queryCoord.setVerticalAlignment(SwingConstants.TOP);
       queryCoord.setOpaque(true);
       subjCoord.setHorizontalAlignment(SwingConstants.RIGHT);
       subjCoord.setVerticalAlignment(SwingConstants.TOP);
       subjCoord.setOpaque(true);
-      score.setHorizontalAlignment(SwingConstants.RIGHT);
-      score.setVerticalAlignment(SwingConstants.TOP);
-      score.setOpaque(true);
-      overlap.setHorizontalAlignment(SwingConstants.RIGHT);
-      overlap.setVerticalAlignment(SwingConstants.TOP);
-      overlap.setOpaque(true);
+      qcov.setHorizontalAlignment(SwingConstants.RIGHT); //+Gaetan
+      qcov.setVerticalAlignment(SwingConstants.TOP); //+Gaetan
+      qcov.setOpaque(true); //+Gaetan
+      scov.setHorizontalAlignment(SwingConstants.RIGHT); //+Gaetan
+      scov.setVerticalAlignment(SwingConstants.TOP); //+Gaetan
+      scov.setOpaque(true); //+Gaetan
       method.setHorizontalAlignment(SwingConstants.RIGHT);
       method.setVerticalAlignment(SwingConstants.TOP);
       method.setOpaque(true);
@@ -600,8 +656,9 @@ public class SimilarityTable extends AbstractMatchTable
       }
       else if(column == getColumnIndex(ID_COL))
       {
-        ungappedId.setText(text);
-        c = ungappedId;
+        //+Gaetan
+        identity.setText(text);
+        c = identity;
       }
       else if(column == getColumnIndex(QUERY_COL))
       {
@@ -613,16 +670,18 @@ public class SimilarityTable extends AbstractMatchTable
         subjCoord.setText(text);
         c = subjCoord;
       }
-      else if(column == getColumnIndex(SCORE_COL))
+      //+Gaetan...
+      else if(column == getColumnIndex(QCOV_COL))
       {
-        score.setText(text);
-        c = score;
+        qcov.setText(text);
+        c = qcov;
       }
-      else if(column == getColumnIndex(OVERLAP_COL))
+      else if(column == getColumnIndex(SCOV_COL))
       {
-        overlap.setText(text);
-        c = overlap;
+        scov.setText(text);
+        c = scov;
       }
+      //...+Gaetan
       else if(column ==getColumnIndex(METHOD_COL))
       {
         method.setText(text);

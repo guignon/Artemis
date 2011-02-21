@@ -373,10 +373,38 @@ public class ArtemisMain extends Splash
         
         if(!entry_source.setLocation(promptUser))
           return;
-        
-        last_entry_edit =
-          DatabaseJPanel.show(entry_source, this,
-              getInputStreamProgressListener(), new_entry_name);
+
+        //+Val...
+        boolean keepTrying = true;
+        while (true == keepTrying)
+        {
+            try
+            {
+                last_entry_edit =
+                  DatabaseJPanel.show(entry_source, this,
+                      getInputStreamProgressListener(), new_entry_name);
+                keepTrying = false;
+            }
+            catch (java.lang.RuntimeException ex)
+            {
+                // invalid password!
+                int confirm_pass_retry = JOptionPane.showConfirmDialog(null, "PostgreSQL authentication failed! Retry?", "Authentication failed", JOptionPane.ERROR_MESSAGE | JOptionPane.YES_NO_OPTION);
+                if (JOptionPane.NO_OPTION  == confirm_pass_retry)
+                {
+                    throw ex;
+                    // System.exit(0);
+                }
+                entry_source = new DatabaseEntrySource();
+                if (false == promptUser)
+                {
+                    entry_source.setReadOnly(true);
+                }
+                if (!entry_source.setLocation(promptUser))
+                    return;
+                entry_source.getDatabaseDocument().reset(); // force disconnect
+            }
+        }
+        //...+Val
       }
       else
       {

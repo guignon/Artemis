@@ -63,7 +63,8 @@ import org.gmod.schema.pub.PubDbXRef;
 import org.gmod.schema.pub.Pub;
 import org.postgresql.largeobject.LargeObjectManager;
 
-import com.ibatis.common.jdbc.SimpleDataSource;
+//+Val import com.ibatis.common.jdbc.SimpleDataSource;
+import org.apache.commons.dbcp.BasicDataSource; //+Val
 
 import java.sql.*;
 import java.text.SimpleDateFormat;
@@ -82,6 +83,12 @@ import java.util.Iterator;
 import java.util.Collection;
 
 import javax.swing.JOptionPane;
+import javax.swing.JTextArea; //+Val
+import javax.swing.JPanel; //+Val
+import javax.swing.JLabel; //+Val
+import javax.swing.JScrollPane; //+Val
+//+16/08/2010 import java.awt.GridLayout; //+Val
+import java.awt.BorderLayout; //+Val //+16/08/2010 
 import javax.swing.JPasswordField;
 
 /**
@@ -166,6 +173,10 @@ public class DatabaseDocument extends Document
   private static org.apache.log4j.Logger logger4j = 
     org.apache.log4j.Logger.getLogger(DatabaseDocument.class);
 
+  //+Val...
+  /** annotation inspector */
+  private static boolean annotationInspectorInstalled = false;
+  //...+Val
   
   /**
    * 
@@ -369,6 +380,37 @@ public class DatabaseDocument extends Document
 	  catch(Exception e) {}
   }
   
+  //+Val...
+  public void initAnnotationInspector()
+  {
+      try
+      {
+          if (connIB == null)
+          {return;} // abort silently
+          Connection conn = ((BasicDataSource)connIB.getDataSource()).getConnection(); //+Val
+          if (conn == null)
+          {return;} // abort silently
+          // check if an Annotation Inspector is installed (find if the procedure exists)
+          PreparedStatement pstmt = conn.prepareStatement("SELECT count(proname) FROM pg_proc WHERE proname = 'validate_annotations' AND proargmodes = '{i,i,o,o}' AND proargnames = '{transaction_group,force_validation,validation_message,validation}';");
+          ResultSet rs = pstmt.executeQuery();
+          if ((rs != null) && (rs.next()) )
+          {
+            if (1 == rs.getInt(1))
+            {
+                // it seems an Annotation Inspector is installed
+                annotationInspectorInstalled = true;
+            }
+            rs.close();
+          }
+      }
+      catch (java.sql.SQLException sqlExp)
+      {
+          sqlExp.printStackTrace();
+      }
+  }
+  //...+Val
+
+
   public void setReadChildren(final boolean readChildren)
   {
     this.readChildren = readChildren; 
@@ -2012,7 +2054,8 @@ public class DatabaseDocument extends Document
       Integer key = (Integer)enum_cvterm.nextElement();
       CvTerm cvterm = (CvTerm)cvterms.get(key);
       
-      if(cvterm.getCv().getName().startsWith(cv_name))
+//+Val      if(cvterm.getCv().getName().startsWith(cv_name))
+      if(cvterm.getCv().getName().equals(cv_name)) //+Val: fix to only list terms of a CV when 2 CVs start with the same string
       {
         if(ignoreCase)
         {
@@ -2593,9 +2636,12 @@ public class DatabaseDocument extends Document
       // this causes class cast problems probably because it gets
       // a pool connection rather than the underlying real connection
       // Connection conn = ((SimpleDataSource)connIB.getDataSource()).getConnection();
-      SimpleDataSource ds = (SimpleDataSource)connIB.getDataSource();
-      Connection conn = DriverManager.getConnection(
-          ds.getJdbcUrl(), ds.getJdbcUsername(), ds.getJdbcPassword());
+//+Val      SimpleDataSource ds = (SimpleDataSource)connIB.getDataSource();
+//+Val      Connection conn = DriverManager.getConnection(
+//+Val          ds.getJdbcUrl(), ds.getJdbcUsername(), ds.getJdbcPassword());
+      BasicDataSource ds = (BasicDataSource)connIB.getDataSource(); //+Val
+      Connection conn = DriverManager.getConnection( //+Val
+          ds.getUrl(), ds.getUsername(), ds.getPassword()); //+Val
 
 
       // All LargeObject API calls must be within a transaction
@@ -2616,7 +2662,8 @@ public class DatabaseDocument extends Document
         {
           // open the large object for reading
           int oid = rs.getInt(5);
-          doc = new LargeObjectDocument(ds.getJdbcUrl(), name, 
+//+Val          doc = new LargeObjectDocument(ds.getJdbcUrl(), name, 
+          doc = new LargeObjectDocument(ds.getUrl(), name, //+Val
              lobj.open(oid, LargeObjectManager.READ));
         }
         rs.close();
@@ -2650,6 +2697,7 @@ public class DatabaseDocument extends Document
       {
         System.setProperty("chado", (String)getLocation());
         connIB = new IBatisDAO(pfield);
+        initAnnotationInspector(); //+Val
       }
       return connIB;
     }
@@ -2758,6 +2806,32 @@ public class DatabaseDocument extends Document
       }
       boolean unchanged;
       
+      //+Val...
+      int iTransactionID = 0; // if should contain a negative value once initialized
+      Connection conn = ((IBatisDAO) dao).getCurrentConnection(); // get current connection
+      // check if an Annotation Inspector is installed (find if the procedure exists)
+      CallableStatement calstat = null;
+      ResultSet rs = null;
+      if (true == annotationInspectorInstalled)
+      {
+        // it seems an Annotation Inspector is installed
+        // the function start_new_transaction_group() should return the id of current transaction which should be negative.
+        calstat = conn.prepareCall("{call start_new_transaction_group()}");
+        rs = calstat.executeQuery();
+        if (rs != null)
+        {
+          while (rs.next())
+          {
+            // get current transaction group ID
+            iTransactionID = rs.getInt(1);
+          }
+          rs.close();
+        }
+      }
+      rs = null;
+      calstat = null;
+      //...+Val
+
       //
       // check feature timestamps have not changed
       Vector names_checked = new Vector();
@@ -2876,6 +2950,7 @@ public class DatabaseDocument extends Document
         gff_feature.setLastModified(ts);
       }
 
+/*+Val
       final String nocommit = System.getProperty("nocommit");
       if( useTransactions && 
           (nocommit == null || nocommit.equals("false")))
@@ -2886,6 +2961,89 @@ public class DatabaseDocument extends Document
       else if(useTransactions && 
           (nocommit != null && nocommit.equals("true")))
         logger4j.debug("TRANSACTION NOT COMMITTED : nocommit property set to true");
+*/
+      //+Val...
+      String strValidationMessage = new String("");
+      int iValidationStatus = 0;
+      // check if an Annotation Inspector has been installed
+      if (0 > iTransactionID)
+      {
+          // calls the Annotation Inspector
+          calstat = conn.prepareCall("{call validate_annotations(?, FALSE)}");
+          calstat.setInt(1, iTransactionID);
+          rs = calstat.executeQuery();
+          // check query execution
+          if (rs != null)
+          {
+            if (rs.next())
+            {
+              strValidationMessage = rs.getString(1);
+              iValidationStatus = rs.getInt(2);
+            }
+            rs.close();
+          }
+      }
+      // check if annotations are validated or if user force commit
+      JTextArea area = new JTextArea(strValidationMessage + "\nYour changes will be committed to the database and the errors notified above will be reported as qualifiers (when available).");
+      area.setRows(40);
+      area.setColumns(80);
+      //area.setLineWrap(true);
+      area.setLineWrap(false);
+      //JScrollPane pane = new JScrollPane(area);
+      JPanel panel = new JPanel();
+      //+16/08/2010 panel.setBorder(BorderFactory.createEmptyBorder(5, 5, 5, 5));
+      //+16/08/2010 panel.setLayout(new GridLayout(3, 1, 5, 5));
+      //+16/08/2010 panel.add(new JLabel("Annotation Inspector Validation"));
+      //+16/08/2010 panel.add(new JScrollPane(area));
+      //+16/08/2010 panel.add(new JLabel("Commit changes."));
+
+      panel.setLayout(new BorderLayout(5, 5)); //+16/08/2010
+      panel.add(new JLabel("Annotation Inspector Validation"), BorderLayout.PAGE_START); //+16/08/2010
+      panel.add(new JScrollPane(area, JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED, JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED), BorderLayout.CENTER); //+16/08/2010
+
+
+
+
+
+//+16/08/2010      if ((0 <= iValidationStatus)
+//+16/08/2010          || (JOptionPane.OK_OPTION == JOptionPane.showOptionDialog(null, panel, "Annotation Inspector Message", JOptionPane.OK_CANCEL_OPTION, JOptionPane.WARNING_MESSAGE, null, null, null)))
+//+16/08/2010      {
+      //...+Val
+          //+16/08/2010
+          if (0 > iValidationStatus)
+          {
+            JOptionPane.showMessageDialog(null, panel, "Annotation Inspector Message", JOptionPane.WARNING_MESSAGE); //+16/08/2010
+          }
+          // commit changes
+          final String nocommit = System.getProperty("nocommit");
+          if( useTransactions && 
+              (nocommit == null || nocommit.equals("false")))
+          {
+              //+Val...
+              // calls the Annotation Inspector and force changes
+              calstat = conn.prepareCall("{call validate_annotations(?, TRUE)}");
+              calstat.setInt(1, iTransactionID);
+              rs = calstat.executeQuery();
+              //...+Val
+              // check query execution
+              if (rs != null)
+              {rs.close();}
+              calstat = null;
+            ((IBatisDAO) dao).commitTransaction();
+            logger4j.debug("TRANSACTION COMPLETE");
+          }
+          else if(useTransactions && 
+              (nocommit != null && nocommit.equals("true")))
+            logger4j.debug("TRANSACTION NOT COMMITTED : nocommit property set to true");
+      //+Val...
+ //+16/08/2010      }
+ //+16/08/2010      else
+ //+16/08/2010      {
+ //+16/08/2010        // commit cancelled
+ //+16/08/2010        System.setProperty("nocommit", "true");
+ //+16/08/2010        logger4j.debug("TRANSACTION NOT COMMITTED : user cancelled");
+ //+16/08/2010      }
+      //...+Val
     }
     catch (java.sql.SQLException sqlExp)
     {
