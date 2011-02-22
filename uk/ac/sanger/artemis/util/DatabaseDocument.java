@@ -87,8 +87,8 @@ import javax.swing.JTextArea; //+Val
 import javax.swing.JPanel; //+Val
 import javax.swing.JLabel; //+Val
 import javax.swing.JScrollPane; //+Val
-//+16/08/2010 import java.awt.GridLayout; //+Val
-import java.awt.BorderLayout; //+Val //+16/08/2010 
+import javax.swing.JDialog; //+Val
+import java.awt.BorderLayout; //+Val
 import javax.swing.JPasswordField;
 
 /**
@@ -2984,36 +2984,35 @@ public class DatabaseDocument extends Document
           }
       }
       // check if annotations are validated or if user force commit
-      JTextArea area = new JTextArea(strValidationMessage + "\nYour changes will be committed to the database and the errors notified above will be reported as qualifiers (when available).");
-      area.setRows(40);
+      JTextArea area = new JTextArea(strValidationMessage + "\nUnless you cancel, your changes will be committed to the database and the errors notified above will be reported as qualifiers (when available).");
+      area.setRows(25);
       area.setColumns(80);
-      //area.setLineWrap(true);
       area.setLineWrap(false);
-      //JScrollPane pane = new JScrollPane(area);
       JPanel panel = new JPanel();
-      //+16/08/2010 panel.setBorder(BorderFactory.createEmptyBorder(5, 5, 5, 5));
-      //+16/08/2010 panel.setLayout(new GridLayout(3, 1, 5, 5));
-      //+16/08/2010 panel.add(new JLabel("Annotation Inspector Validation"));
-      //+16/08/2010 panel.add(new JScrollPane(area));
-      //+16/08/2010 panel.add(new JLabel("Commit changes."));
 
-      panel.setLayout(new BorderLayout(5, 5)); //+16/08/2010
-      panel.add(new JLabel("Annotation Inspector Validation"), BorderLayout.PAGE_START); //+16/08/2010
-      panel.add(new JScrollPane(area, JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED, JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED), BorderLayout.CENTER); //+16/08/2010
+      panel.setLayout(new BorderLayout(5, 5));
+      panel.add(new JLabel("Annotation Inspector Validation"), BorderLayout.PAGE_START);
+      panel.add(new JScrollPane(area, JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED, JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED), BorderLayout.CENTER);
 
+      JOptionPane pane = new JOptionPane(panel, JOptionPane.WARNING_MESSAGE, JOptionPane.OK_CANCEL_OPTION);
+      JDialog dialog = pane.createDialog(null, "Annotation Inspector Message");
+      dialog.setResizable(true);
+      dialog.setAlwaysOnTop(true);
+      //dialog.setModal(true);
+      //dialog.setVisible(true);
+      dialog.show(true);
+      Object selectedValue = pane.getValue();
+      int returnValue = JOptionPane.CANCEL_OPTION;
+      if(selectedValue instanceof Integer)
+      {
+        returnValue = ((Integer)selectedValue).intValue();
+      }
 
-
-
-
-//+16/08/2010      if ((0 <= iValidationStatus)
-//+16/08/2010          || (JOptionPane.OK_OPTION == JOptionPane.showOptionDialog(null, panel, "Annotation Inspector Message", JOptionPane.OK_CANCEL_OPTION, JOptionPane.WARNING_MESSAGE, null, null, null)))
-//+16/08/2010      {
+      if ((0 <= iValidationStatus)
+          || (JOptionPane.OK_OPTION == returnValue))
+//          || (JOptionPane.OK_OPTION == JOptionPane.showOptionDialog(null, panel, "Annotation Inspector Message", JOptionPane.OK_CANCEL_OPTION, JOptionPane.WARNING_MESSAGE, null, null, null)))
+      {
       //...+Val
-          //+16/08/2010
-          if (0 > iValidationStatus)
-          {
-            JOptionPane.showMessageDialog(null, panel, "Annotation Inspector Message", JOptionPane.WARNING_MESSAGE); //+16/08/2010
-          }
           // commit changes
           final String nocommit = System.getProperty("nocommit");
           if( useTransactions && 
@@ -3036,13 +3035,14 @@ public class DatabaseDocument extends Document
               (nocommit != null && nocommit.equals("true")))
             logger4j.debug("TRANSACTION NOT COMMITTED : nocommit property set to true");
       //+Val...
- //+16/08/2010      }
- //+16/08/2010      else
- //+16/08/2010      {
- //+16/08/2010        // commit cancelled
- //+16/08/2010        System.setProperty("nocommit", "true");
- //+16/08/2010        logger4j.debug("TRANSACTION NOT COMMITTED : user cancelled");
- //+16/08/2010      }
+      }
+      else
+      {
+        // commit cancelled
+        //System.setProperty("nocommit", "true");
+        logger4j.debug("TRANSACTION NOT COMMITTED : user cancelled");
+        return 0;
+      }
       //...+Val
     }
     catch (java.sql.SQLException sqlExp)
